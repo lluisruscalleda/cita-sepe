@@ -1,8 +1,8 @@
 # cita-sepe
 
-Robot que consulta la cita prèvia del SEPE (prestacions) a **finestres horàries** (p. ex. obertura de places a Premià de Mar), fa un **snapshot** (captura + HTML) del bloc d’oficines `#cntOficinasPrincipal` i el desa en **buckets** datats (`buckets/YYYY-MM-DD/HH-MM-SS/`), amb pujada opcional a **Google Drive** i avisos al mòbil.
+**CA:** Per defecte el robot **no** consulta el SEPE cada 5 minuts. Només fa polling a les **finestres d’horari de Premià de Mar** (`schedule.json`, `Europe/Madrid`, dilluns–divendres). Amb `SCHEDULE_ENABLED=false` passa al mode continu cada `POLL_INTERVAL_MS` (5 min per defecte). Desa **snapshots** del bloc d’oficines `#cntOficinasPrincipal` en **buckets** datats, amb Drive i avisos al mòbil opcionals.
 
-Bot que consulta la cita previa del SEPE en ventanas horarias configurables, guarda snapshots y puede notificar al móvil.
+**ES:** Por defecto **no** consulta el SEPE cada 5 minutos. Solo hace polling en las **ventanas del horario de Premià de Mar** (`schedule.json`, `Europe/Madrid`, lunes–viernes). Con `SCHEDULE_ENABLED=false` usa el modo continuo cada `POLL_INTERVAL_MS` (5 min). Guarda snapshots y puede sincronizar Drive / notificar al móvil.
 
 ## Requisits / Requisitos
 
@@ -57,13 +57,16 @@ cp .env.example .env
 npm run once
 ```
 
-### Bucle continu (recomanat)
+### Procés llarg (recomanat)
 
 ```bash
 npm start
 ```
 
-Manté **una sola sessió/navegador**. Amb `SCHEDULE_ENABLED=true` (defecte) només consulta a les hores de `schedule.json` (Premià); entre finestres **no** pega al SEPE. Amb `SCHEDULE_ENABLED=false` usa `POLL_INTERVAL_MS`.
+Manté **una sola sessió/navegador**.
+
+- **Defecte** (`SCHEDULE_ENABLED=true`): espera cada finestra de `schedule.json` (Premià, `Europe/Madrid`, lun–div); entre finestres **no** consulta el SEPE.
+- **Mode continu** (`SCHEDULE_ENABLED=false`): consulta cada `POLL_INTERVAL_MS` (5 min per defecte).
 
 ## Horari Premià de Mar (defecte)
 
@@ -87,7 +90,7 @@ sudo journalctl -u cita-sepe -f
 
 ### cron (alternativa)
 
-Vegeu `deploy/cita-sepe.cron.example` (`npm run once` cada 5 minuts). Preferible `systemd` + `npm start` per respectar una sola sessió i backoff.
+Preferible `systemd` + `npm start` (el procés ja respecta l’horari Premià). Si useu cron, no cal disparar cada 5 min: millor `npm start` en background o cron alineat amb `schedule.json`. Vegeu `deploy/cita-sepe.cron.example`.
 
 ## Google Drive — buckets
 
@@ -128,7 +131,7 @@ rclone sync ./buckets gdrive:cita-sepe/buckets
 
 ## Notificacions al mòbil (ntfy / Pushover)
 
-El robot llegeix `#info-franja-disponible` / el bloc d’oficines. Si el text és el de *«no podem oferir cites»* → `unavailable`. Si hi ha forats/cites reals → `available` i **només llavors** envia push (no cada 5 min mentre segueixi available, tret que `NOTIFY_ON_EVERY_AVAILABLE=true`).
+El robot llegeix `#info-franja-disponible` / el bloc d’oficines. Si el text és el de *«no podem oferir cites»* → `unavailable`. Si hi ha forats/cites reals → `available` i **només llavors** envia push (no a cada consulta mentre segueixi available, tret que `NOTIFY_ON_EVERY_AVAILABLE=true`).
 
 Pots activar **ntfy**, **Pushover**, o tots dos.
 
@@ -175,7 +178,7 @@ PUSHOVER_API_TOKEN=el_teu_api_token
 - **OK / sense cites / possible disponibilitat** al log.
 - **CAPTCHA**: s’atura el cicle amb error clar (no es resol automàticament). Torna-ho a provar més tard o amb `HEADLESS=false`.
 - Errors de xarxa: reintents amb backoff (`MAX_RETRIES`, `RETRY_BASE_MS`).
-- Respecteu el lloc: interval ≥ 5 min, un sol procés.
+- Respecteu el lloc: un sol procés; amb schedule no cal pegar fora de les finestres; en mode continu useu `POLL_INTERVAL_MS` ≥ 5 min.
 
 ## Desenvolupament
 
