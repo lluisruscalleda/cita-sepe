@@ -1,0 +1,31 @@
+{
+  "name": "cita-sepe",
+  "version": "1.0.0",
+  "description": "Robot de consulta de cites prèvies SEPE amb snapshots a Google Drive",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "start": "tsx src/index.ts",
+    "once": "tsx src/index.ts --once",
+    "build": "tsc -p tsconfig.json --noEmit",
+    "postinstall": "playwright install chromium"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lluisruscalleda/cita-sepe.git"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "dotenv": "^17.2.3",
+    "googleapis": "^164.1.0",
+    "playwright": "^1.56.1",
+    "tsx": "^4.20.6"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.1",
+    "typescript": "^5.9.3"
+  }
+}

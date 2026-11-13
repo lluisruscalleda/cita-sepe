@@ -1,0 +1,14 @@
+node_modules/
+dist/
+.env
+.env.local
+buckets/
+*.log
+logs/
+credentials/
+*-credentials.json
+service-account.json
+.DS_Store
+playwright-report/
+test-results/
+.tsx-cache/

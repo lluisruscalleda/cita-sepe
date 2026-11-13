@@ -1,0 +1,4 @@
+# Alternativa a systemd: cron cada 5 minuts (una sola execució).
+# Requereix: cd al projecte i fitxer .env configurat.
+#
+# */5 * * * * cd /opt/cita-sepe && /usr/bin/npm run once >> /var/log/cita-sepe.log 2>&1

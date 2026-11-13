@@ -1,0 +1,17 @@
+[Unit]
+Description=Robot consulta cites SEPE (cita-sepe)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/cita-sepe
+EnvironmentFile=/opt/cita-sepe/.env
+ExecStart=/usr/bin/npm run start
+Restart=on-failure
+RestartSec=30
+# Un sol procés de navegador de forma contínua (interval intern 5 min)
+Nice=10
+
+[Install]
+WantedBy=multi-user.target
