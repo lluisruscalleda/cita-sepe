@@ -21,6 +21,7 @@ export class SiteBlockedError extends Error {
 export type PollResult = {
   availability: AvailabilityState;
   message: string;
+  franjaText: string;
   snapshot: SnapshotResult;
   usedDirectUrl: boolean;
 };
@@ -28,15 +29,22 @@ export type PollResult = {
 const NO_CITAS_RE =
   /no podem oferir cites|no podemos ofrecer citas|no hi ha cites|no hay citas/i;
 const HAS_SLOT_RE =
-  /primer hueco|primer forat|disponible|hueco disponible|forat disponible/i;
+  /primer\s*hueco|primer\s*forat|hueco disponible|forat disponible|primera cita|cita disponible/i;
+const SELECT_CANAL_RE =
+  /Seleccioni el canal|Seleccione el canal|SELECCIONEU EL CANAL/i;
 
-function classifyAvailability(text: string): {
+export function classifyAvailability(text: string): {
   availability: AvailabilityState;
   message: string;
 } {
   const trimmed = text.replace(/\s+/g, " ").trim();
-  if (!trimmed) {
-    return { availability: "unknown", message: "Bloc d'oficines buit" };
+  if (!trimmed || SELECT_CANAL_RE.test(trimmed)) {
+    return {
+      availability: "unknown",
+      message: trimmed
+        ? "Encara no hi ha resultat d'oficines"
+        : "Bloc d'oficines buit",
+    };
   }
   if (NO_CITAS_RE.test(trimmed)) {
     return {
@@ -44,13 +52,35 @@ function classifyAvailability(text: string): {
       message: "Sense cites: missatge «no podem oferir cites»",
     };
   }
-  if (HAS_SLOT_RE.test(trimmed) || /oficina/i.test(trimmed)) {
+  // Disponibilitat real: franja amb huecos / llista d'oficines sense el missatge negatiu
+  if (HAS_SLOT_RE.test(trimmed)) {
     return {
       availability: "available",
-      message: "Possible disponibilitat d'oficines/cites",
+      message: "Hi ha cites / forats disponibles a #info-franja-disponible",
+    };
+  }
+  // Llista d'oficines amb contingut (sense el missatge de no cites)
+  if (
+    /oficina/i.test(trimmed) &&
+    !/no podem|no podemos|presol/i.test(trimmed)
+  ) {
+    return {
+      availability: "available",
+      message: "Oficines visibles sense missatge de «no cites»",
     };
   }
   return { availability: "unknown", message: trimmed.slice(0, 240) };
+}
+
+async function readFranjaText(root: Page | Frame): Promise<string> {
+  return root.evaluate(() => {
+    const franja = document.querySelector("#info-franja-disponible");
+    if (franja?.textContent?.trim()) return franja.textContent.trim();
+    const block =
+      document.querySelector("#cntOficinasPrincipal") ||
+      document.querySelector("#cntOficinas");
+    return block?.textContent?.trim() || "";
+  });
 }
 
 async function acceptCookies(page: Page): Promise<void> {
@@ -288,6 +318,7 @@ export async function runPoll(
     await fillStep1(root, page, config);
     await selectCanalAndWaitOffices(root, page, config.canal);
 
+    const franjaText = await readFranjaText(root);
     const snapshot = await saveOfficesSnapshot({
       root,
       page,
@@ -299,12 +330,15 @@ export async function runPoll(
         canal: config.canal,
         nifMasked: `${config.nif.slice(0, 3)}***${config.nif.slice(-1)}`,
         usedDirectUrl,
+        franjaText: franjaText.slice(0, 2000),
       },
     });
 
-    const { availability, message } = classifyAvailability(snapshot.text);
+    const { availability, message } = classifyAvailability(
+      franjaText || snapshot.text
+    );
     log.info("Resultat consulta", { availability, message });
-    return { availability, message, snapshot, usedDirectUrl };
+    return { availability, message, franjaText, snapshot, usedDirectUrl };
   } finally {
     await context.close();
   }

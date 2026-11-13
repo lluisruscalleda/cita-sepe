@@ -42,6 +42,12 @@ export type AppConfig = {
   maxRetries: number;
   retryBaseMs: number;
   notifyWebhookUrl: string | null;
+  notifyNtfyUrl: string | null;
+  notifyOnEveryAvailable: boolean;
+  notifyTelegramBotToken: string | null;
+  notifyTelegramChatId: string | null;
+  pushoverApiToken: string | null;
+  pushoverUserKey: string | null;
   googleDriveFolderId: string | null;
   googleCredentialsPath: string | null;
   googleCredentialsJson: string | null;
@@ -70,6 +76,13 @@ export function loadConfig(argv = process.argv.slice(2)): AppConfig {
     maxRetries: envInt("MAX_RETRIES", 3),
     retryBaseMs: envInt("RETRY_BASE_MS", 5_000),
     notifyWebhookUrl: process.env.NOTIFY_WEBHOOK_URL?.trim() || null,
+    notifyNtfyUrl: process.env.NOTIFY_NTFY_URL?.trim() || null,
+    notifyOnEveryAvailable: envBool("NOTIFY_ON_EVERY_AVAILABLE", false),
+    notifyTelegramBotToken:
+      process.env.NOTIFY_TELEGRAM_BOT_TOKEN?.trim() || null,
+    notifyTelegramChatId: process.env.NOTIFY_TELEGRAM_CHAT_ID?.trim() || null,
+    pushoverApiToken: process.env.PUSHOVER_API_TOKEN?.trim() || null,
+    pushoverUserKey: process.env.PUSHOVER_USER_KEY?.trim() || null,
     googleDriveFolderId: process.env.GOOGLE_DRIVE_FOLDER_ID?.trim() || null,
     googleCredentialsPath:
       process.env.GOOGLE_APPLICATION_CREDENTIALS?.trim() || null,

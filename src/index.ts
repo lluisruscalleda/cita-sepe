@@ -3,6 +3,7 @@ import { createDriveClient, syncBucketToDrive } from "./drive.js";
 import { log } from "./logger.js";
 import {
   notifyAvailabilityChange,
+  shouldNotifyAvailability,
   type AvailabilityState,
 } from "./notify.js";
 import {
@@ -24,6 +25,8 @@ async function main(): Promise<void> {
     headless: config.headless,
     runOnce: config.runOnce,
     bucketsDir: config.bucketsDir,
+    ntfy: Boolean(config.notifyNtfyUrl),
+    pushover: Boolean(config.pushoverApiToken && config.pushoverUserKey),
   });
 
   const drive = await createDriveClient(config);
@@ -59,13 +62,20 @@ async function main(): Promise<void> {
           });
         });
 
-        if (previous !== null && previous !== result.availability) {
-          await notifyAvailabilityChange(config.notifyWebhookUrl, {
+        if (
+          shouldNotifyAvailability(
+            previous,
+            result.availability,
+            config.notifyOnEveryAvailable
+          )
+        ) {
+          await notifyAvailabilityChange(config, {
             previous,
             current: result.availability,
             message: result.message,
             bucketPath: result.snapshot.bucketDir,
             at: new Date().toISOString(),
+            franjaText: result.franjaText,
           });
         } else {
           log.info("Estat", {
@@ -78,13 +88,6 @@ async function main(): Promise<void> {
       } catch (err) {
         if (err instanceof CaptchaBlockedError) {
           log.error("CAPTCHA / bloqueig anti-bot", { error: err.message });
-          await notifyAvailabilityChange(config.notifyWebhookUrl, {
-            previous,
-            current: "unknown",
-            message: err.message,
-            bucketPath: config.bucketsDir,
-            at: new Date().toISOString(),
-          });
         } else if (err instanceof SiteBlockedError) {
           log.error("Lloc SEPE bloquejat o error clar", { error: err.message });
         } else {

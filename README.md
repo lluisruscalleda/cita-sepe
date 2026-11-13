@@ -33,11 +33,15 @@ cp .env.example .env
 | `POLL_INTERVAL_MS` | Interval entre consultes | `300000` (5 min) |
 | `HEADLESS` | `true`/`false` | `true` |
 | `BUCKETS_DIR` | Carpeta local de snapshots | `./buckets` |
-| `NOTIFY_WEBHOOK_URL` | Webhook si canvia la disponibilitat | (buit) |
+| `NOTIFY_NTFY_URL` | Topic ntfy.sh (push al mòbil) | (buit) |
+| `PUSHOVER_USER_KEY` | User key de Pushover | (buit) |
+| `PUSHOVER_API_TOKEN` | API token / app de Pushover | (buit) |
+| `NOTIFY_WEBHOOK_URL` | Webhook JSON opcional | (buit) |
+| `NOTIFY_ON_EVERY_AVAILABLE` | `true` = avisa cada cicle amb cites | `false` |
 | `GOOGLE_DRIVE_FOLDER_ID` | Carpeta Drive arrel | (buit = només local) |
 | `GOOGLE_APPLICATION_CREDENTIALS` | JSON del compte de servei | — |
 
-> Les credencials de Drive **no** es fan commit. El NIF/CP van a `.env` (ignorat per git).
+> Les credencials (Drive, Pushover, NIF) **no** es fan commit: van a `.env` (ignorat per git).
 
 ## Com executar / Cómo ejecutar
 
@@ -108,14 +112,49 @@ rclone config   # remote "gdrive"
 rclone sync ./buckets gdrive:cita-sepe/buckets
 ```
 
+## Notificacions al mòbil (ntfy / Pushover)
+
+El robot llegeix `#info-franja-disponible` / el bloc d’oficines. Si el text és el de *«no podem oferir cites»* → `unavailable`. Si hi ha forats/cites reals → `available` i **només llavors** envia push (no cada 5 min mentre segueixi available, tret que `NOTIFY_ON_EVERY_AVAILABLE=true`).
+
+Pots activar **ntfy**, **Pushover**, o tots dos.
+
+### ntfy.sh (gratis, senzill)
+
+1. Instal·la l’app **ntfy** (Android / iOS / escriptori): https://ntfy.sh/
+2. A l’app, **Subscribe to topic** amb un nom llarg i secret (ex. `cita-sepe-abc123xyz`).
+3. Al `.env`:
+
+```env
+NOTIFY_NTFY_URL=https://ntfy.sh/cita-sepe-abc123xyz
+```
+
+4. Prova: `curl -d "prova cita-sepe" "$NOTIFY_NTFY_URL"`
+
+### Pushover (app de pagament únic)
+
+1. Crea compte a https://pushover.net/ i instal·la l’app al mòbil.
+2. Copia el **User Key** del dashboard.
+3. Crea una **Application** i copia l’**API Token/Key**.
+4. Al `.env`:
+
+```env
+PUSHOVER_USER_KEY=el_teu_user_key
+PUSHOVER_API_TOKEN=el_teu_api_token
+```
+
+### Altres (opcional)
+
+- `NOTIFY_WEBHOOK_URL` — POST JSON genèric
+- `NOTIFY_TELEGRAM_BOT_TOKEN` + `NOTIFY_TELEGRAM_CHAT_ID` — bot de Telegram
+
 ## Què fa cada cicle
 
 1. Obre el portal SEPE (o l’URL directa de citaprevia si l’iframe falla).
 2. Omple CP (`08330` via Select2), PRESTACIONS, tràmit `158`, subtràmit `8`, NIF.
 3. Continua → a «SELECCIONEU EL CANAL» tria **Presencial** (`1`).
-4. Captura `#cntOficinasPrincipal` (screenshot + HTML), incloent el missatge *«En aquests moments no podem oferir cites…»* si no n’hi ha.
+4. Captura `#cntOficinasPrincipal` / `#info-franja-disponible` (screenshot + HTML).
 5. Desa el bucket local i el puja a Drive si hi ha credencials.
-6. Registra èxit/fracàs i, si canvia la disponibilitat, crida el stub de notify (consola / webhook).
+6. Si l’estat passa a **available**, notifica (ntfy / Pushover / webhook).
 
 ## Logs i bloquejos
 
