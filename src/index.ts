@@ -7,6 +7,11 @@ import {
   type AvailabilityState,
 } from "./notify.js";
 import {
+  formatInZone,
+  getNextScheduledPoll,
+  msUntil,
+} from "./schedule.js";
+import {
   CaptchaBlockedError,
   SiteBlockedError,
   launchBrowser,
@@ -21,12 +26,15 @@ async function main(): Promise<void> {
     cp: config.codigoPostal,
     tramit: config.tramit,
     subtramit: config.subtramit,
-    intervalMs: config.pollIntervalMs,
     headless: config.headless,
     runOnce: config.runOnce,
     bucketsDir: config.bucketsDir,
     ntfy: Boolean(config.notifyNtfyUrl),
     pushover: Boolean(config.pushoverApiToken && config.pushoverUserKey),
+    scheduleEnabled: Boolean(config.schedule),
+    scheduleTimes: config.schedule?.times.length ?? null,
+    timezone: config.schedule?.timezone ?? null,
+    pollIntervalMs: config.schedule ? null : config.pollIntervalMs,
   });
 
   const drive = await createDriveClient(config);
@@ -46,6 +54,26 @@ async function main(): Promise<void> {
 
   try {
     do {
+      if (config.schedule && !config.runOnce) {
+        const next = getNextScheduledPoll(config.schedule);
+        const waitMs = msUntil(next.at);
+        log.info("Esperant finestra de schedule (sense consultar SEPE)", {
+          window: next.windowLabel,
+          burst: next.burstIndex,
+          atLocal: formatInZone(next.at, config.schedule.timezone),
+          waitSec: Math.round(waitMs / 1000),
+        });
+        // Sleep in chunks so SIGINT can land reasonably soon
+        const chunk = 30_000;
+        let remaining = waitMs;
+        while (remaining > 0 && !stopping) {
+          const step = Math.min(chunk, remaining);
+          await sleep(step);
+          remaining -= step;
+        }
+        if (stopping) break;
+      }
+
       const started = Date.now();
       try {
         const result = await withRetries(config, "Consulta SEPE", () =>
@@ -99,10 +127,13 @@ async function main(): Promise<void> {
 
       if (config.runOnce || stopping) break;
 
-      const elapsed = Date.now() - started;
-      const wait = Math.max(0, config.pollIntervalMs - elapsed);
-      log.info(`Següent consulta en ${Math.round(wait / 1000)}s`);
-      await sleep(wait);
+      if (!config.schedule) {
+        const elapsed = Date.now() - started;
+        const wait = Math.max(0, config.pollIntervalMs - elapsed);
+        log.info(`Mode continu: següent consulta en ${Math.round(wait / 1000)}s`);
+        await sleep(wait);
+      }
+      // Amb schedule, el següent cicle espera la propera finestra al capçal del loop
     } while (!stopping);
   } finally {
     await browser.close().catch(() => undefined);

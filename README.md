@@ -1,8 +1,8 @@
 # cita-sepe
 
-Robot que consulta cada **5 minuts** la cita prèvia del SEPE (prestacions), fa un **snapshot** (captura + HTML) del bloc d’oficines `#cntOficinasPrincipal` i el desa en **buckets** datats (`buckets/YYYY-MM-DD/HH-MM-SS/`), amb pujada opcional a **Google Drive**.
+Robot que consulta la cita prèvia del SEPE (prestacions) a **finestres horàries** (p. ex. obertura de places a Premià de Mar), fa un **snapshot** (captura + HTML) del bloc d’oficines `#cntOficinasPrincipal` i el desa en **buckets** datats (`buckets/YYYY-MM-DD/HH-MM-SS/`), amb pujada opcional a **Google Drive** i avisos al mòbil.
 
-Bot que consulta cada **5 minutos** la cita previa del SEPE, guarda snapshots del bloque de oficinas y los sincroniza con Google Drive (opcional).
+Bot que consulta la cita previa del SEPE en ventanas horarias configurables, guarda snapshots y puede notificar al móvil.
 
 ## Requisits / Requisitos
 
@@ -30,7 +30,13 @@ cp .env.example .env
 | `SEPE_TRAMIT` | Valor del tràmit | `158` |
 | `SEPE_SUBTRAMIT` | Valor del subtràmit | `8` |
 | `SEPE_CANAL` | Canal PRESENCIAL | `1` |
-| `POLL_INTERVAL_MS` | Interval entre consultes | `300000` (5 min) |
+| `SCHEDULE_ENABLED` | `true` = finestres; `false` = continu | `true` |
+| `SCHEDULE_FILE` | JSON d’horari | `./schedule.json` |
+| `SCHEDULE_TIMEZONE` | Zona horària | `Europe/Madrid` |
+| `POLL_SCHEDULE` | Llista `HH:MM` (sobreescriu JSON) | (buit) |
+| `SCHEDULE_WEEKDAYS` | 1=lun…7=dg | (del JSON) |
+| `SCHEDULE_BURST_OFFSETS_MS` | Offsets per finestra (ms) | `0,60000` |
+| `POLL_INTERVAL_MS` | Interval mode continu | `300000` (5 min) |
 | `HEADLESS` | `true`/`false` | `true` |
 | `BUCKETS_DIR` | Carpeta local de snapshots | `./buckets` |
 | `NOTIFY_NTFY_URL` | Topic ntfy.sh (push al mòbil) | (buit) |
@@ -57,7 +63,15 @@ npm run once
 npm start
 ```
 
-Manté **una sola sessió/navegador** i consulta cada `POLL_INTERVAL_MS` (5 min per defecte).
+Manté **una sola sessió/navegador**. Amb `SCHEDULE_ENABLED=true` (defecte) només consulta a les hores de `schedule.json` (Premià); entre finestres **no** pega al SEPE. Amb `SCHEDULE_ENABLED=false` usa `POLL_INTERVAL_MS`.
+
+## Horari Premià de Mar (defecte)
+
+Segons el cartell *CITA PREVIA SEPE PREMIÀ DE MAR* (`Europe/Madrid`, dilluns–divendres):
+
+`08:30 08:42 08:54 09:06 09:18 09:30 09:42 09:54 10:06 10:18` · gap · `11:18 11:30 11:42 11:54 12:06 12:18 12:30 12:42 12:54 13:06 13:18`
+
+A cada finestra fa un **burst** a `T` i `T+1 min` (`SCHEDULE_BURST_OFFSETS_MS`). Edita `schedule.json` o `POLL_SCHEDULE` per altres oficines.
 
 ### systemd
 
@@ -149,11 +163,11 @@ PUSHOVER_API_TOKEN=el_teu_api_token
 
 ## Què fa cada cicle
 
-1. Obre el portal SEPE (o l’URL directa de citaprevia si l’iframe falla).
-2. Omple CP (`08330` via Select2), PRESTACIONS, tràmit `158`, subtràmit `8`, NIF.
-3. Continua → a «SELECCIONEU EL CANAL» tria **Presencial** (`1`).
-4. Captura `#cntOficinasPrincipal` / `#info-franja-disponible` (screenshot + HTML).
-5. Desa el bucket local i el puja a Drive si hi ha credencials.
+1. (Schedule) Dorm fins a la propera finestra; **no** consulta SEPE mentrestant.
+2. Obre el portal SEPE (o l’URL directa de citaprevia si l’iframe falla).
+3. Omple CP / tràmit / subtràmit / NIF i canal **Presencial**.
+4. Captura `#cntOficinasPrincipal` / `#info-franja-disponible`.
+5. Desa el bucket (i Drive si hi ha credencials).
 6. Si l’estat passa a **available**, notifica (ntfy / Pushover / webhook).
 
 ## Logs i bloquejos

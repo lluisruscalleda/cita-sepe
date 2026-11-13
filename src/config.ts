@@ -1,5 +1,6 @@
 import { config as loadEnv } from "dotenv";
 import path from "node:path";
+import { resolveSchedule, type PollSchedule } from "./schedule.js";
 
 loadEnv({ quiet: true });
 
@@ -35,6 +36,9 @@ export type AppConfig = {
   subtramit: string;
   canal: string;
   pollIntervalMs: number;
+  /** null = continuous POLL_INTERVAL_MS mode */
+  schedule: PollSchedule | null;
+  scheduleEnabled: boolean;
   headless: boolean;
   portalUrl: string;
   directUrl: string;
@@ -55,6 +59,18 @@ export type AppConfig = {
 };
 
 export function loadConfig(argv = process.argv.slice(2)): AppConfig {
+  const scheduleEnabled = envBool("SCHEDULE_ENABLED", true);
+  const schedule = resolveSchedule({
+    enabled: scheduleEnabled,
+    timezone: process.env.SCHEDULE_TIMEZONE?.trim() || "Europe/Madrid",
+    timesCsv: process.env.POLL_SCHEDULE?.trim() || null,
+    weekdaysCsv: process.env.SCHEDULE_WEEKDAYS?.trim() || null,
+    burstCsv: process.env.SCHEDULE_BURST_OFFSETS_MS?.trim() || null,
+    scheduleFile:
+      process.env.SCHEDULE_FILE?.trim() ||
+      (scheduleEnabled ? "./schedule.json" : null),
+  });
+
   return {
     codigoPostal: env("SEPE_CODIGO_POSTAL", "08330"),
     nif: env("SEPE_NIF"),
@@ -63,6 +79,8 @@ export function loadConfig(argv = process.argv.slice(2)): AppConfig {
     subtramit: env("SEPE_SUBTRAMIT", "8"),
     canal: env("SEPE_CANAL", "1"),
     pollIntervalMs: envInt("POLL_INTERVAL_MS", 300_000),
+    schedule,
+    scheduleEnabled,
     headless: envBool("HEADLESS", true),
     portalUrl: env(
       "SEPE_PORTAL_URL",
