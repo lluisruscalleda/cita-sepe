@@ -1,8 +1,8 @@
 # cita-sepe
 
-**CA:** Per defecte el robot **no** consulta el SEPE cada 5 minuts. Només fa polling a les **finestres d’horari de Premià de Mar** (`schedule.json`, `Europe/Madrid`, dilluns–divendres). Amb `SCHEDULE_ENABLED=false` passa al mode continu cada `POLL_INTERVAL_MS` (5 min per defecte). Desa **snapshots** del bloc d’oficines `#cntOficinasPrincipal` en **buckets** datats, amb Drive i avisos al mòbil opcionals.
+**CA:** Robot que consulta la cita prèvia del SEPE només a les **finestres d’horari de Premià de Mar** definides a `schedule.json` (`Europe/Madrid`, dilluns–divendres). Desa **snapshots** del bloc d’oficines `#cntOficinasPrincipal` en **buckets** datats, amb Google Drive i avisos al mòbil opcionals.
 
-**ES:** Por defecto **no** consulta el SEPE cada 5 minutos. Solo hace polling en las **ventanas del horario de Premià de Mar** (`schedule.json`, `Europe/Madrid`, lunes–viernes). Con `SCHEDULE_ENABLED=false` usa el modo continuo cada `POLL_INTERVAL_MS` (5 min). Guarda snapshots y puede sincronizar Drive / notificar al móvil.
+**ES:** Robot que consulta la cita previa del SEPE solo en las **ventanas del horario de Premià de Mar** de `schedule.json` (`Europe/Madrid`, lunes–viernes). Guarda snapshots del bloque de oficinas en buckets fechados; Drive y notificaciones al móvil son opcionales.
 
 ## Requisits / Requisitos
 
@@ -30,13 +30,13 @@ cp .env.example .env
 | `SEPE_TRAMIT` | Valor del tràmit | `158` |
 | `SEPE_SUBTRAMIT` | Valor del subtràmit | `8` |
 | `SEPE_CANAL` | Canal PRESENCIAL | `1` |
-| `SCHEDULE_ENABLED` | `true` = finestres; `false` = continu | `true` |
+| `SCHEDULE_ENABLED` | Horari Premià (`true`). `false` = mode continu cada `POLL_INTERVAL_MS` (5 min) | `true` |
 | `SCHEDULE_FILE` | JSON d’horari | `./schedule.json` |
 | `SCHEDULE_TIMEZONE` | Zona horària | `Europe/Madrid` |
 | `POLL_SCHEDULE` | Llista `HH:MM` (sobreescriu JSON) | (buit) |
 | `SCHEDULE_WEEKDAYS` | 1=lun…7=dg | (del JSON) |
 | `SCHEDULE_BURST_OFFSETS_MS` | Offsets per finestra (ms) | `0,60000` |
-| `POLL_INTERVAL_MS` | Interval mode continu | `300000` (5 min) |
+| `POLL_INTERVAL_MS` | Només si `SCHEDULE_ENABLED=false` | `300000` |
 | `HEADLESS` | `true`/`false` | `true` |
 | `BUCKETS_DIR` | Carpeta local de snapshots | `./buckets` |
 | `NOTIFY_NTFY_URL` | Topic ntfy.sh (push al mòbil) | (buit) |
@@ -63,10 +63,7 @@ npm run once
 npm start
 ```
 
-Manté **una sola sessió/navegador**.
-
-- **Defecte** (`SCHEDULE_ENABLED=true`): espera cada finestra de `schedule.json` (Premià, `Europe/Madrid`, lun–div); entre finestres **no** consulta el SEPE.
-- **Mode continu** (`SCHEDULE_ENABLED=false`): consulta cada `POLL_INTERVAL_MS` (5 min per defecte).
+Manté **una sola sessió/navegador** i consulta a cada finestra de `schedule.json` (Premià).
 
 ## Horari Premià de Mar (defecte)
 
